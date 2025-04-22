@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        AWS_REGION = 'ap-south-1'
+        ECR_REPO = '050752608507.dkr.ecr.ap-south-1.amazonaws.com/sakinashfaq/dockrepo'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -10,24 +15,39 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t 050752608507.dkr.ecr.ap-south-1.amazonaws.com/sakinashfaq/dockrepo:docker .'
+                script {
+                    sh 'docker build -t $ECR_REPO:docker .'
+                }
             }
         }
-        stage('login to ECR') {
+
+        stage('Login to AWS ECR') {
             steps {
-                sh 'aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 050752608507.dkr.ecr.ap-south-1.amazonaws.com'
+                withAWS(credentials: 'aws_credentials', region: AWS_REGION) {
+                    script {
+                        
+                        sh 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO'
+                    }
+                }
             }
         }
+
         stage('Push to ECR') {
             steps {
-                sh 'docker push 050752608507.dkr.ecr.ap-south-1.amazonaws.com/sakinashfaq/dockrepo:docker'
+                script {
+                    
+                    sh 'docker push $ECR_REPO:docker'
+                }
             }
         }
 
         stage('Deploy Container') {
             steps {
-                sh 'docker run -itd 050752608507.dkr.ecr.ap-south-1.amazonaws.com/sakinashfaq/dockrepo:docker'
+                script {
+                    sh 'docker run -itd $ECR_REPO:docker'
+                }
             }
         }
     }
 }
+
